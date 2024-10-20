@@ -2,21 +2,21 @@ package main
 
 import (
 	"database/sql"
+	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
-	"golang.org/x/crypto/bcrypt"
 	_ "github.com/lib/pq"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 var jwtKey = []byte("my_secret_key")
 
 const (
-	dbConnectionString = "user=postgres password=mysecretpassword dbname=userdb sslmode=disable"
+	dbConnectionString = "host=postgres user=postgres password=mysecretpassword dbname=userdb sslmode=disable"
 )
 
 type Credentials struct {
@@ -32,18 +32,41 @@ type Claims struct {
 var db *sql.DB
 
 func init() {
+	retryInterval := 5 * time.Second
+	maxRetries := 10
 	var err error
-	db, err = sql.Open("postgres", dbConnectionString)
-	if err != nil {
-		log.Fatalf("Unable to connect to the database: %v", err)
-	}
+	for i := 0; i < maxRetries; i++ {
+		db, err = sql.Open("postgres", dbConnectionString)
+		if err != nil {
+			log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
+		}
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatalf("Unable to reach the database: %v", err)
+		err = db.Ping()
+		if err != nil {
+			log.Printf("Unable to reach the database (attempt %d/%d): %v", i+1, maxRetries, err)
+			time.Sleep(retryInterval)
+			continue
+		}
+		break
 	}
-
+	if err != nil{
+		log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
+	}
 	log.Println("Connected to the database successfully!")
+	return
+}
+
+func readinessHandler(w http.ResponseWriter, r *http.Request) {
+	if db == nil {
+		http.Error(w, "Database not ready", http.StatusServiceUnavailable)
+		return
+	}
+	if err := db.Ping(); err != nil {
+		http.Error(w, "Database not ready", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Ready"))
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -111,44 +134,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Login successful!")
 }
 
-func ValidateHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	tokenStr := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	if !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	fmt.Fprintf(w, "Welcome %s! Your token is valid.", claims.Username)
-}
-
 func main() {
+	http.HandleFunc("/readiness", readinessHandler)
 	http.HandleFunc("/register", RegisterHandler)
 	http.HandleFunc("/login", LoginHandler)
-	http.HandleFunc("/validate", ValidateHandler)
 
 	log.Println("User service is running on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

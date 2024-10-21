@@ -9,10 +9,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/golang-jwt/jwt/v4"
 )
-
-var jwtKey = []byte("my_secret_key")
 
 const (
 	dbConnectionString = "host=postgres user=postgres password=mysecretpassword dbname=expensedb sslmode=disable"
@@ -26,38 +23,45 @@ type Expense struct {
 	Date        time.Time `json:"date"`
 }
 
-type Claims struct {
-	Username string `json:"username"`
-	jwt.RegisteredClaims
-}
-
 var db *sql.DB
 
 func init() {
-	retryInterval := 5 * time.Second
-	maxRetries := 10
+    retryInterval := 5 * time.Second
+    maxRetries := 10
 	var err error
-	for i := 0; i < maxRetries; i++ {
-		db, err = sql.Open("postgres", dbConnectionString)
-		if err != nil {
-			log.Printf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
-			time.Sleep(retryInterval)
-		}
+    for i := 0; i < maxRetries; i++ {
+        db, err = sql.Open("postgres", dbConnectionString)
+        if err != nil {
+            log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
+        }
 
-		err = db.Ping()
-		if err != nil {
-			log.Printf("Unable to reach the database (attempt %d/%d): %v", i+1, maxRetries, err)
-			time.Sleep(retryInterval)
-			continue
-		}
-		break
-	}
-	if err !=nil{
+        err = db.Ping()
+        if err != nil {
+            log.Printf("Unable to reach the database (attempt %d/%d): %v", i+1, maxRetries, err)
+            time.Sleep(retryInterval)
+            continue
+        }
+
+        _, err = db.Exec(`CREATE TABLE IF NOT EXISTS expenses (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) NOT NULL,
+            description VARCHAR(255) NOT NULL,
+            amount NUMERIC(10, 2) NOT NULL,
+            date TIMESTAMP NOT NULL
+        )`)
+        if err != nil {
+            log.Fatalf("Unable to create expenses table: %v", err)
+        }
+
+        break
+    }
+	if err != nil{
 		log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
 	}
-	log.Println("Connected to the database successfully!")
-	return
+    log.Println("Connected to the database and ensured expenses table exists successfully!")
+    return
 }
+
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
@@ -73,35 +77,14 @@ func readinessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddExpenseHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	tokenStr := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	var expense Expense
 	if err := json.NewDecoder(r.Body).Decode(&expense); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	expense.Username = claims.Username
-	_, err = db.Exec("INSERT INTO expenses (username, description, amount, date) VALUES ($1, $2, $3, $4)", expense.Username, expense.Description, expense.Amount, expense.Date)
+	expense.Date = time.Now()
+	_, err := db.Exec("INSERT INTO expenses (username, description, amount, date) VALUES ($1, $2, $3, $4)", expense.Username, expense.Description, expense.Amount, expense.Date)
 	if err != nil {
 		http.Error(w, "Error saving expense to database", http.StatusInternalServerError)
 		return
@@ -111,28 +94,13 @@ func AddExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetExpensesHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
 		return
 	}
 
-	tokenStr := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	rows, err := db.Query("SELECT id, username, description, amount, date FROM expenses WHERE username=$1", claims.Username)
+	rows, err := db.Query("SELECT id, username, description, amount, date FROM expenses WHERE username=$1", username)
 	if err != nil {
 		http.Error(w, "Error fetching expenses", http.StatusInternalServerError)
 		return
@@ -154,34 +122,13 @@ func GetExpensesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateExpenseHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	tokenStr := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	var expense Expense
 	if err := json.NewDecoder(r.Body).Decode(&expense); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	_, err = db.Exec("UPDATE expenses SET description=$1, amount=$2, date=$3 WHERE id=$4 AND username=$5", expense.Description, expense.Amount, expense.Date, expense.ID, claims.Username)
+	_, err := db.Exec("UPDATE expenses SET description=$1, amount=$2, date=$3 WHERE id=$4 AND username=$5", expense.Description, expense.Amount, expense.Date, expense.ID, expense.Username)
 	if err != nil {
 		http.Error(w, "Error updating expense", http.StatusInternalServerError)
 		return
@@ -191,34 +138,19 @@ func UpdateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteExpenseHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	tokenStr := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	var expenseID int
 	if err := json.NewDecoder(r.Body).Decode(&expenseID); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	_, err = db.Exec("DELETE FROM expenses WHERE id=$1 AND username=$2", expenseID, claims.Username)
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("DELETE FROM expenses WHERE id=$1 AND username=$2", expenseID, username)
 	if err != nil {
 		http.Error(w, "Error deleting expense", http.StatusInternalServerError)
 		return

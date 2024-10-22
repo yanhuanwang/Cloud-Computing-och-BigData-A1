@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Expenses</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .button {
+            padding: 10px 15px;
+            margin: 5px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button.delete {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Expense List</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="expenses-list">
+                <!-- Expenses will be dynamically added here -->
+            </tbody>
+        </table>
+        <button class="button" onclick="addExpense()">Add New Expense</button>
+    </div>
+
+    <script>
+        function fetchExpenses() {
+            fetch('http://localhost:8081/get-expenses?username=default_user')
+                .then(response => response.json())
+                .then(data => {
+                    const expensesList = document.getElementById('expenses-list');
+                    expensesList.innerHTML = '';
+                    data.forEach(expense => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${expense.id}</td>
+                            <td>${expense.username}</td>
+                            <td>${expense.description}</td>
+                            <td>$${expense.amount}</td>
+                            <td>${new Date(expense.date).toLocaleString()}</td>
+                            <td>
+                                <button class="button" onclick="editExpense(${expense.id})">Edit</button>
+                                <button class="button delete" onclick="deleteExpense(${expense.id})">Delete</button>
+                            </td>
+                        `;
+                        expensesList.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching expenses:', error);
+                });
+        }
+
+        function addExpense() {
+            const description = prompt('Enter expense description:');
+            const amount = prompt('Enter expense amount:');
+
+            fetch('http://localhost:8081/add-expense', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: 'default_user', description, amount })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        fetchExpenses();
+                    } else {
+                        throw new Error('Failed to add expense');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding expense:', error);
+                });
+        }
+
+        function editExpense(expenseId) {
+            const newDescription = prompt('Enter new description:');
+            const newAmount = prompt('Enter new amount:');
+
+            fetch('http://localhost:8081/update-expense', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: expenseId, username: 'default_user', description: newDescription, amount: newAmount, date: new Date().toISOString() })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        fetchExpenses();
+                    } else {
+                        throw new Error('Failed to update expense');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating expense:', error);
+                });
+        }
+
+        function deleteExpense(expenseId) {
+            fetch('http://localhost:8081/delete-expense', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: expenseId, username: 'default_user' })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        fetchExpenses();
+                    } else {
+                        throw new Error('Failed to delete expense');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting expense:', error);
+                });
+        }
+
+        // Initial fetch of expenses when the page loads
+        fetchExpenses();
+    </script>
+</body>
+</html>

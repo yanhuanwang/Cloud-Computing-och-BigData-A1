@@ -1,13 +1,20 @@
-FROM nginx:latest
+# Step 1: Build Flask service
+FROM python:3.9-slim
 
-# Copy the HTML files to the Nginx HTML directory
-COPY swagger-ui/ /usr/share/nginx/html/swagger-ui
+# Set working directory
+WORKDIR /app
 
-# Add custom Nginx configuration to allow requests from all domains
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Copy Flask server code
+# COPY flask_gui_server.py /app/
+# COPY listExpense.html /app/
+COPY src/ /app/
+COPY swagger-ui/ /app/
 
-# Expose port 80 to allow external access to the Nginx server
-EXPOSE 80
+# Install dependencies
+RUN pip install flask
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Expose Flask port
+EXPOSE 5000
+
+# Start Flask server
+CMD ["python", "flask_gui_server.py"]

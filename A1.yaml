@@ -137,3 +137,55 @@ spec:
       port: 5432
       targetPort: 5432
   type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: expense-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"
+spec:
+  rules:
+  - host: expense.localhost
+    http:
+      paths:
+      - path: /add-expense
+        pathType: Prefix
+        backend:
+          service:
+            name: expense-service
+            port:
+              number: 8081
+      - path: /get-expenses
+        pathType: Prefix
+        backend:
+          service:
+            name: expense-service
+            port:
+              number: 8081
+      - path: /update-expense
+        pathType: Prefix
+        backend:
+          service:
+            name: expense-service
+            port:
+              number: 8081
+      - path: /delete-expense
+        pathType: Prefix
+        backend:
+          service:
+            name: expense-service
+            port:
+              number: 8081
+      - path: /swagger-ui/
+        pathType: Prefix
+        backend:
+          service:
+            name: gui-service
+            port:
+              number: 80
+  tls: []

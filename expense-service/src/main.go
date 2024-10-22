@@ -9,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 )
 
 const (
@@ -160,12 +161,24 @@ func DeleteExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/readiness", readinessHandler)
-	http.HandleFunc("/add-expense", AddExpenseHandler)
-	http.HandleFunc("/get-expenses", GetExpensesHandler)
-	http.HandleFunc("/update-expense", UpdateExpenseHandler)
-	http.HandleFunc("/delete-expense", DeleteExpenseHandler)
+    http.HandleFunc("/readiness", readinessHandler)
+    http.HandleFunc("/add-expense", AddExpenseHandler)
+    http.HandleFunc("/get-expenses", GetExpensesHandler)
+    http.HandleFunc("/update-expense", UpdateExpenseHandler)
+    http.HandleFunc("/delete-expense", DeleteExpenseHandler)
 
-	log.Println("Expense service is running on port 8081")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+    // Configure CORS to allow all origins
+    c := cors.New(cors.Options{
+        AllowedOrigins:   []string{"*"}, // Allow all origins
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
+        AllowedHeaders:   []string{"Authorization", "Content-Type"}, // Allowed headers
+        AllowCredentials: true,
+    })
+
+    // Use the CORS handler
+    corsHandler := c.Handler(http.DefaultServeMux)
+
+    log.Println("Expense service is running on port 8081")
+    log.Fatal(http.ListenAndServe(":8081", corsHandler))
 }
+

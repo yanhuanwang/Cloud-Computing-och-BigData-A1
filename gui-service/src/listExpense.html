@@ -74,7 +74,7 @@
 
     <script>
         function fetchExpenses() {
-            fetch('http://expense-service:8081/get-expenses?username=default_user')
+            fetch('http://nginx-reverse-proxy/get-expenses?username=default_user')
                 .then(response => response.json())
                 .then(data => {
                     const expensesList = document.getElementById('expenses-list');
@@ -104,7 +104,7 @@
             const description = prompt('Enter expense description:');
             const amount = prompt('Enter expense amount:');
 
-            fetch('http://expense-service:8081/add-expense', {
+            fetch('http://nginx-reverse-proxy/add-expense', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -127,7 +127,7 @@
             const newDescription = prompt('Enter new description:');
             const newAmount = prompt('Enter new amount:');
 
-            fetch('http://expense-service:8081/update-expense', {
+            fetch('http://nginx-reverse-proxy/update-expense', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -147,7 +147,7 @@
         }
 
         function deleteExpense(expenseId) {
-            fetch('http://expense-service:8081/delete-expense', {
+            fetch('http://nginx-reverse-proxy/delete-expense', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'

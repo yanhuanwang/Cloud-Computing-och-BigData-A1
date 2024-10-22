@@ -27,42 +27,61 @@ type Expense struct {
 var db *sql.DB
 
 func init() {
-    retryInterval := 5 * time.Second
-    maxRetries := 10
+	retryInterval := 5 * time.Second
+	maxRetries := 10
 	var err error
-    for i := 0; i < maxRetries; i++ {
-        db, err = sql.Open("postgres", dbConnectionString)
-        if err != nil {
-            log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
-        }
+	for i := 0; i < maxRetries; i++ {
+		db, err = sql.Open("postgres", dbConnectionString)
+		if err != nil {
+			log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
+		}
 
-        err = db.Ping()
-        if err != nil {
-            log.Printf("Unable to reach the database (attempt %d/%d): %v", i+1, maxRetries, err)
-            time.Sleep(retryInterval)
-            continue
-        }
+		err = db.Ping()
+		if err != nil {
+			log.Printf("Unable to reach the database (attempt %d/%d): %v", i+1, maxRetries, err)
+			time.Sleep(retryInterval)
+			continue
+		}
 
-        _, err = db.Exec(`CREATE TABLE IF NOT EXISTS expenses (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(50) NOT NULL,
-            description VARCHAR(255) NOT NULL,
-            amount NUMERIC(10, 2) NOT NULL,
-            date TIMESTAMP NOT NULL
-        )`)
-        if err != nil {
-            log.Fatalf("Unable to create expenses table: %v", err)
-        }
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS expenses (
+			id SERIAL PRIMARY KEY,
+			username VARCHAR(50) NOT NULL,
+			description VARCHAR(255) NOT NULL,
+			amount NUMERIC(10, 2) NOT NULL,
+			date TIMESTAMP NOT NULL
+		)`)
+		if err != nil {
+			log.Fatalf("Unable to create expenses table: %v", err)
+		}
 
-        break
-    }
-	if err != nil{
+		break
+	}
+	if err != nil {
 		log.Fatalf("Unable to connect to the database after %d attempts: %v", maxRetries, err)
 	}
-    log.Println("Connected to the database and ensured expenses table exists successfully!")
-    return
+	log.Println("Connected to the database and ensured expenses table exists successfully!")
+	return
 }
 
+func logRequest(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		log.Printf("Started %s %s", r.Method, r.URL.Path)
+		lrw := &loggingResponseWriter{w, http.StatusOK}
+		handler.ServeHTTP(lrw, r)
+		log.Printf("Completed %d %s in %v", lrw.statusCode, http.StatusText(lrw.statusCode), time.Since(start))
+	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
@@ -161,24 +180,23 @@ func DeleteExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    http.HandleFunc("/readiness", readinessHandler)
-    http.HandleFunc("/add-expense", AddExpenseHandler)
-    http.HandleFunc("/get-expenses", GetExpensesHandler)
-    http.HandleFunc("/update-expense", UpdateExpenseHandler)
-    http.HandleFunc("/delete-expense", DeleteExpenseHandler)
+	http.HandleFunc("/readiness", readinessHandler)
+	http.HandleFunc("/add-expense", AddExpenseHandler)
+	http.HandleFunc("/get-expenses", GetExpensesHandler)
+	http.HandleFunc("/update-expense", UpdateExpenseHandler)
+	http.HandleFunc("/delete-expense", DeleteExpenseHandler)
 
-    // Configure CORS to allow all origins
-    c := cors.New(cors.Options{
-        AllowedOrigins:   []string{"*"}, // Allow all origins
-        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
-        AllowedHeaders:   []string{"Authorization", "Content-Type"}, // Allowed headers
-        AllowCredentials: true,
-    })
+	// Configure CORS to allow all origins
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Allow all origins
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
+		AllowedHeaders:   []string{"Authorization", "Content-Type"}, // Allowed headers
+		AllowCredentials: true,
+	})
 
-    // Use the CORS handler
-    corsHandler := c.Handler(http.DefaultServeMux)
+	// Use the CORS handler
+	corsHandler := c.Handler(logRequest(http.DefaultServeMux))
 
-    log.Println("Expense service is running on port 8081")
-    log.Fatal(http.ListenAndServe(":8081", corsHandler))
+	log.Println("Expense service is running on port 8081")
+	log.Fatal(http.ListenAndServe(":8081", corsHandler))
 }
-

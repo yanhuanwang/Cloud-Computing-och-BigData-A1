@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Copy go.mod, go.sum and source code files
 COPY src/go.mod src/go.sum src/main.go ./
+COPY swagger-ui ./static/
+COPY listExpense.html ./static/
 
 # Download dependencies
 RUN go mod download

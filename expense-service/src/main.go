@@ -17,11 +17,11 @@ const (
 )
 
 type Expense struct {
-	ID          int       `json:"id"`
-	Username    string    `json:"username"`
-	Description string    `json:"description"`
-	Amount      float64   `json:"amount"`
-	Date        time.Time `json:"date"`
+	ID          int       `json:"id,omitempty"`
+	Username    string    `json:"username,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Amount      float64   `json:"amount,omitempty"`
+	Date        time.Time `json:"date,omitempty"`
 }
 
 var db *sql.DB
@@ -187,11 +187,14 @@ func main() {
 	http.HandleFunc("/update-expense", UpdateExpenseHandler)
 	http.HandleFunc("/delete-expense", DeleteExpenseHandler)
 
-	// Configure CORS to allow all origins
+	// Serve static files from the "static" directory
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+
+	// Configure CORS to allow all origins, methods, and headers
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"}, // Allow all origins
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
-		AllowedHeaders:   []string{"Authorization", "Content-Type"}, // Allowed headers
+		AllowedMethods:   []string{"*"}, // Allow all HTTP methods
+		AllowedHeaders:   []string{"*"}, // Allow all headers
 		AllowCredentials: true,
 	})
 

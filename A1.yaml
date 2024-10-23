@@ -148,7 +148,7 @@ spec:
 #     - protocol: TCP
 #       port: 80
 #       targetPort: 80
-#   type: ClusterIP
+#   type: LoadBalancer
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -271,7 +271,16 @@ data:
               },
               "responses": {
                 "200": {
-                  "description": "Expense added successfully"
+                  "description": "Expense added successfully",
+                  "headers": {
+                    "Access-Control-Allow-Origin": {
+                      "description": "CORS header to allow all origins",
+                      "schema": {
+                        "type": "string"
+                      },
+                      "example": "*"
+                    }
+                  }
                 },
                 "400": {
                   "description": "Invalid request payload"
@@ -310,6 +319,15 @@ data:
                         }
                       }
                     }
+                  },
+                  "headers": {
+                    "Access-Control-Allow-Origin": {
+                      "description": "CORS header to allow all origins",
+                      "schema": {
+                        "type": "string"
+                      },
+                      "example": "*"
+                    }
                   }
                 },
                 "400": {
@@ -336,7 +354,16 @@ data:
               },
               "responses": {
                 "200": {
-                  "description": "Expense updated successfully"
+                  "description": "Expense updated successfully",
+                  "headers": {
+                    "Access-Control-Allow-Origin": {
+                      "description": "CORS header to allow all origins",
+                      "schema": {
+                        "type": "string"
+                      },
+                      "example": "*"
+                    }
+                  }
                 },
                 "400": {
                   "description": "Invalid request payload"
@@ -362,7 +389,16 @@ data:
               },
               "responses": {
                 "200": {
-                  "description": "Expense deleted successfully"
+                  "description": "Expense deleted successfully",
+                  "headers": {
+                    "Access-Control-Allow-Origin": {
+                      "description": "CORS header to allow all origins",
+                      "schema": {
+                        "type": "string"
+                      },
+                      "example": "*"
+                    }
+                  }
                 },
                 "400": {
                   "description": "Invalid request payload"
@@ -462,3 +498,5 @@ data:
           }
         }
       }
+
+

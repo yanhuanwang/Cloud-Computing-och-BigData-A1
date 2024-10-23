@@ -95,8 +95,12 @@ func readinessHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Ready"))
 }
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
 
 func AddExpenseHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	var expense Expense
 	if err := json.NewDecoder(r.Body).Decode(&expense); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -114,6 +118,7 @@ func AddExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetExpensesHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	username := r.URL.Query().Get("username")
 	if username == "" {
 		http.Error(w, "Username is required", http.StatusBadRequest)
@@ -142,6 +147,7 @@ func GetExpensesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateExpenseHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	var expense Expense
 	if err := json.NewDecoder(r.Body).Decode(&expense); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -158,6 +164,7 @@ func UpdateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteExpenseHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	var expenseID int
 	if err := json.NewDecoder(r.Body).Decode(&expenseID); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)

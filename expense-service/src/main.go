@@ -165,19 +165,13 @@ func UpdateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteExpenseHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	var expenseID int
-	if err := json.NewDecoder(r.Body).Decode(&expenseID); err != nil {
+	var expense Expense
+	if err := json.NewDecoder(r.Body).Decode(&expense); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	_, err := db.Exec("DELETE FROM expenses WHERE id=$1 AND username=$2", expenseID, username)
+	_, err := db.Exec("DELETE FROM expenses WHERE id=$1 AND username=$2", expense.ID, expense.Username)
 	if err != nil {
 		http.Error(w, "Error deleting expense", http.StatusInternalServerError)
 		return

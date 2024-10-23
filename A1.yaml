@@ -76,79 +76,79 @@ spec:
     - protocol: TCP
       port: 8081
       targetPort: 8081
-  type: ClusterIP
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: gui-service-deployment
-  labels:
-    app: gui-service
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: gui-service
-  template:
-    metadata:
-      labels:
-        app: gui-service
-    spec:
-      containers:
-      - name: gui-service
-        image: gui-service:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 5000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: gui-service
-spec:
-  selector:
-    app: gui-service
-  ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 5000
   type: LoadBalancer
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-reverse-proxy
-  labels:
-    app: nginx-reverse-proxy
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: nginx-reverse-proxy
-  template:
-    metadata:
-      labels:
-        app: nginx-reverse-proxy
-    spec:
-      containers:
-      - name: nginx-reverse-proxy
-        image: nginx-reverse-proxy:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-reverse-proxy
-spec:
-  selector:
-    app: nginx-reverse-proxy
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: ClusterIP
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: gui-service-deployment
+#   labels:
+#     app: gui-service
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: gui-service
+#   template:
+#     metadata:
+#       labels:
+#         app: gui-service
+#     spec:
+#       containers:
+#       - name: gui-service
+#         image: gui-service:latest
+#         imagePullPolicy: Never
+#         ports:
+#         - containerPort: 5000
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: gui-service
+# spec:
+#   selector:
+#     app: gui-service
+#   ports:
+#     - protocol: TCP
+#       port: 5000
+#       targetPort: 5000
+#   type: LoadBalancer
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: nginx-reverse-proxy
+#   labels:
+#     app: nginx-reverse-proxy
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: nginx-reverse-proxy
+#   template:
+#     metadata:
+#       labels:
+#         app: nginx-reverse-proxy
+#     spec:
+#       containers:
+#       - name: nginx-reverse-proxy
+#         image: nginx-reverse-proxy:latest
+#         imagePullPolicy: Never
+#         ports:
+#         - containerPort: 80
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: nginx-reverse-proxy
+# spec:
+#   selector:
+#     app: nginx-reverse-proxy
+#   ports:
+#     - protocol: TCP
+#       port: 80
+#       targetPort: 80
+#   type: ClusterIP
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -173,19 +173,292 @@ spec:
       port: 5432
       targetPort: 5432
   type: ClusterIP
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: expense-service-ingress
+# spec:
+#   rules:
+#   - http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: expense-service
+#             port:
+#               number: 8081
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: expense-service-ingress
+  name: swagger-ui-deployment
+  labels:
+    app: swagger-ui
 spec:
-  rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: expense-service
-            port:
-              number: 8081
+  replicas: 1
+  selector:
+    matchLabels:
+      app: swagger-ui
+  template:
+    metadata:
+      labels:
+        app: swagger-ui
+    spec:
+      containers:
+      - name: swagger-ui
+        image: swaggerapi/swagger-ui:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SWAGGER_JSON_URL
+          value: "config/expense-api.json"
+        volumeMounts:
+        - name: swagger-config-volume
+          mountPath: /usr/share/nginx/html/config
+      volumes:
+      - name: swagger-config-volume
+        configMap:
+          name: swagger-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: swagger-ui
+spec:
+  selector:
+    app: swagger-ui
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swagger-config
+  labels:
+    app: swagger-ui
+data:
+  expense-api.json: |
+      {
+        "openapi": "3.0.0",
+        "info": {
+          "title": "Expense Service API",
+          "description": "API documentation for the Expense Service",
+          "version": "1.0.0"
+        },
+        "servers": [
+          {
+            "url": "http://expense-service:8081"
+          }
+        ],
+        "paths": {
+          "/add-expense": {
+            "post": {
+              "summary": "Add a new expense",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/addexpense_body"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Expense added successfully"
+                },
+                "400": {
+                  "description": "Invalid request payload"
+                },
+                "500": {
+                  "description": "Error saving expense to database"
+                }
+              }
+            }
+          },
+          "/get-expenses": {
+            "get": {
+              "summary": "Get all expenses for a user",
+              "parameters": [
+                {
+                  "name": "username",
+                  "in": "query",
+                  "description": "Username to get expenses for",
+                  "required": true,
+                  "style": "form",
+                  "explode": true,
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "A list of expenses",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/inline_response_200"
+                        }
+                      }
+                    }
+                  }
+                },
+                "400": {
+                  "description": "Username is required"
+                },
+                "500": {
+                  "description": "Error fetching expenses"
+                }
+              }
+            }
+          },
+          "/update-expense": {
+            "put": {
+              "summary": "Update an existing expense",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/updateexpense_body"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Expense updated successfully"
+                },
+                "400": {
+                  "description": "Invalid request payload"
+                },
+                "500": {
+                  "description": "Error updating expense"
+                }
+              }
+            }
+          },
+          "/delete-expense": {
+            "delete": {
+              "summary": "Delete an existing expense",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/deleteexpense_body"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Expense deleted successfully"
+                },
+                "400": {
+                  "description": "Invalid request payload"
+                },
+                "500": {
+                  "description": "Error deleting expense"
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "addexpense_body": {
+              "required": [
+                "amount",
+                "description",
+                "username"
+              ],
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                }
+              }
+            },
+            "inline_response_200": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "date": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "updateexpense_body": {
+              "required": [
+                "amount",
+                "date",
+                "description",
+                "id",
+                "username"
+              ],
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "date": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "deleteexpense_body": {
+              "required": [
+                "id",
+                "username"
+              ],
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }

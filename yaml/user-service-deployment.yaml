@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: user-service:latest
-        imagePullPolicy: Never
+        image: yanhuanwang/user-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8082
         readinessProbe:

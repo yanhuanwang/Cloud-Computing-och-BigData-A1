@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: expense-service
-        image: expense-service:latest
-        imagePullPolicy: Never
+        image: yanhuanwang/expense-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8081
         readinessProbe:

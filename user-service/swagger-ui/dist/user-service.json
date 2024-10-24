@@ -1,0 +1,182 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "User Service API",
+      "description": "API documentation for the User Service",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:8082"
+      }
+    ],
+    "paths": {
+      "/create-user": {
+        "post": {
+          "summary": "Create a new user",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createuser_body"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "User created successfully"
+            },
+            "400": {
+              "description": "Invalid request payload"
+            },
+            "500": {
+              "description": "Error creating user"
+            }
+          }
+        }
+      },
+      "/edit-user": {
+        "put": {
+          "summary": "Edit an existing user",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/edituser_body"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "User updated successfully"
+            },
+            "400": {
+              "description": "Invalid request payload"
+            },
+            "500": {
+              "description": "Error updating user"
+            }
+          }
+        }
+      },
+      "/list-users": {
+        "get": {
+          "summary": "List all users",
+          "responses": {
+            "200": {
+              "description": "A list of users",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/user"
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Error fetching users"
+            }
+          }
+        }
+      },
+      "/delete-user": {
+        "delete": {
+          "summary": "Delete an existing user",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/deleteuser_body"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "User deleted successfully"
+            },
+            "400": {
+              "description": "Invalid request payload"
+            },
+            "500": {
+              "description": "Error deleting user"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "createuser_body": {
+          "required": [
+            "username",
+            "email",
+            "password"
+          ],
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "edituser_body": {
+          "required": [
+            "username",
+            "email"
+          ],
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "deleteuser_body": {
+          "required": [
+            "username"
+          ],
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            }
+          }
+        },
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "username": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
